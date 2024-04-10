@@ -1,104 +1,113 @@
 #![feature(portable_simd)]
 
-use std::simd::LaneCount;
-use std::simd::SupportedLaneCount;
-
+use criterion::BenchmarkId;
 use criterion::{criterion_group, criterion_main, Criterion, black_box};
 
 use simd_base64::base64;
 use simd_base64::base64_simd;
 
-const TEST_DATA_SIZE: usize = 1_000_000;
-
-fn generate_base64_data() -> Vec<u8> {
+fn generate_base64_data(size: usize) -> Vec<u8> {
     let alphabet = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
     let mut count = 0;
     black_box(Vec::from_iter(std::iter::from_fn(|| {
         count += 1;
-        if count == TEST_DATA_SIZE {
+        if count == size {
             return None;
         }
         Some(alphabet[count % alphabet.len()])
     })))
 }
 
-fn generate_binary_data() -> Vec<u8> {
+fn generate_binary_data(size: usize) -> Vec<u8> {
     let mut count = 0;
     black_box(Vec::from_iter(std::iter::from_fn(|| {
         count += 1;
-        if count == TEST_DATA_SIZE {
+        if count == size {
             return None;
         }
         Some(count as u8)
     })))
 }
 
-fn bench_decode(c: &mut Criterion) {
-    let data = generate_base64_data();
+fn bench_decode_all(c: &mut Criterion) {
+    let mut group = c.benchmark_group("decode");
 
-    c.bench_function("base64_decode", |b| {
-        b.iter(|| {
-            let mut out = Vec::new();
-            base64::decode(&data, &mut out).unwrap();
-        });
-    });
+    for size in [100, 100_000, 1_000_000] {
+        let data = generate_base64_data(size);
+
+        group
+            .bench_with_input(BenchmarkId::new("classic", size), &data, |g, input| {
+                g.iter(|| {
+                    base64::decode(&input, &mut Vec::new()).unwrap();
+                })
+            })
+            .bench_with_input(BenchmarkId::new("simd_8", size), &data, |g, input| {
+                g.iter(|| {
+                    base64_simd::decode::<8>(&input, &mut Vec::new()).unwrap();
+                })
+            })
+            .bench_with_input(BenchmarkId::new("simd_16", size), &data, |g, input| {
+                g.iter(|| {
+                    base64_simd::decode::<16>(&input, &mut Vec::new()).unwrap();
+                })
+            })
+            .bench_with_input(BenchmarkId::new("simd_32", size), &data, |g, input| {
+                g.iter(|| {
+                    base64_simd::decode::<32>(&input, &mut Vec::new()).unwrap();
+                })
+            });
+    }
+
+    group.finish();
 }
 
-fn bench_decode_simd<const N: usize>(c: &mut Criterion)
-where
-    LaneCount<N>: SupportedLaneCount
-{
-    let data = generate_base64_data();
+fn bench_encode_all(c: &mut Criterion) {
 
-    c.bench_function(&format!("base64_decode_simd{}", N), |b| {
-        b.iter(|| {
-            let mut out = Vec::new();
-            base64_simd::decode::<N>(&data, &mut out).unwrap();
-        });
-    });
-}
+    let mut group = c.benchmark_group("encode");
 
-fn bench_encode(c: &mut Criterion) {
-    let data = generate_binary_data();
+    for size in [100, 100_000, 1_000_000] {
+        let data = generate_binary_data(size);
 
-    c.bench_function("base64_encode", |b| {
-        b.iter(|| {
-            let mut out = Vec::new();
-            base64::encode(&data, &mut out);
-        });
-    });
-}
+        group
+            .bench_with_input(BenchmarkId::new("classic", size), &data, |g, input| {
+                g.iter(|| {
+                    base64::encode(&input, &mut Vec::new())
+                })
+            })
+            .bench_with_input(BenchmarkId::new("simd_4",  size),&data, |g, input| {
+                g.iter(|| {
+                    base64_simd::encode::<4>(&input, &mut Vec::new())
+                })
+            })
+            .bench_with_input(BenchmarkId::new("simd_8", size), &data, |g, input| {
+                g.iter(|| {
+                    base64_simd::encode::<8>(&input, &mut Vec::new())
+                })
+            })
+            .bench_with_input(BenchmarkId::new("simd_16", size), &data, |g, input| {
+                g.iter(|| {
+                    base64_simd::encode::<16>(&input, &mut Vec::new())
+                })
+            })
+            .bench_with_input(BenchmarkId::new("simd_32", size), &data, |g, input| {
+                g.iter(|| {
+                    base64_simd::encode::<32>(&input, &mut Vec::new())
+                })
+            });
+    }
 
-fn bench_encode_simd<const N: usize>(c: &mut Criterion)
-where
-    LaneCount<N>: SupportedLaneCount
-{
-    let data = generate_binary_data();
-
-    c.bench_function(&format!("base64_encode_simd{}", N), |b| {
-        b.iter(|| {
-            let mut out = Vec::new();
-            base64_simd::encode::<N>(&data, &mut out);
-        });
-    });
+    group.finish();
 }
 
 criterion_group!(
     decode,
-    bench_decode,
-    bench_decode_simd::<8>,
-    bench_decode_simd::<16>,
-    bench_decode_simd::<32>,
+    bench_decode_all,
 );
 
 criterion_group!(
     encode,
-    bench_encode,
-    bench_encode_simd::<4>,
-    bench_encode_simd::<8>,
-    bench_encode_simd::<16>,
-    bench_encode_simd::<32>,
+    bench_encode_all,
 );
 
 criterion_main!(
