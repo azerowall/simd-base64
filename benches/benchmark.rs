@@ -69,7 +69,6 @@ fn bench_decode(c: &mut Criterion) {
 }
 
 fn bench_encode(c: &mut Criterion) {
-
     let mut group = c.benchmark_group("encode");
 
     for size in [100, 1000, 10_000] {
@@ -113,16 +112,10 @@ fn bench_encode(c: &mut Criterion) {
 }
 
 criterion_group!(
-    decode,
+    benches,
     bench_decode,
-);
-
-criterion_group!(
-    encode,
     bench_encode,
 );
-
 criterion_main!(
-    decode,
-    encode,
+    benches
 );
