@@ -37,6 +37,7 @@ pub fn encoded_len(decoded_len: usize) -> usize {
 
 // This function doesn't return Option<_> because it would lead
 // to branching (match, if let)
+#[inline]
 fn decode_hot<const N: usize>(ascii: Simd<u8, N>) -> (Simd<u8, N>, bool)
 where
     LaneCount<N>: SupportedLaneCount
@@ -161,6 +162,7 @@ where
     Ok(())
 }
 
+#[inline]
 fn encode_hot<const N: usize>(bytes: Simd<u8, N>) -> Simd<u8, N>
 where
     LaneCount<N>: SupportedLaneCount
