@@ -1,7 +1,7 @@
 #![feature(portable_simd)]
 
-use criterion::{BenchmarkId, Throughput};
-use criterion::{criterion_group, criterion_main, Criterion, black_box};
+use criterion::{AxisScale, BenchmarkId, PlotConfiguration, Throughput};
+use criterion::{criterion_group, criterion_main, Criterion};
 
 use simd_base64::base64;
 use simd_base64::base64_simd;
@@ -37,6 +37,10 @@ fn bench_decode(c: &mut Criterion) {
         let data = generate_base64_data(size);
 
         group.throughput(Throughput::Bytes(size as u64));
+        group.plot_config(
+            PlotConfiguration::default()
+            .summary_scale(AxisScale::Logarithmic)
+        );
 
         group
             .bench_with_input(BenchmarkId::new("classic", size), &data, |g, input| {
@@ -72,6 +76,10 @@ fn bench_encode(c: &mut Criterion) {
         let data = generate_binary_data(size);
 
         group.throughput(Throughput::Bytes(size as u64));
+        group.plot_config(
+            PlotConfiguration::default()
+            .summary_scale(AxisScale::Logarithmic)
+        );
 
         group
             .bench_with_input(BenchmarkId::new("classic", size), &data, |g, input| {
