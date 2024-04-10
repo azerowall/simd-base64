@@ -1,6 +1,6 @@
 #![feature(portable_simd)]
 
-use criterion::BenchmarkId;
+use criterion::{BenchmarkId, Throughput};
 use criterion::{criterion_group, criterion_main, Criterion, black_box};
 
 use simd_base64::base64;
@@ -10,31 +10,33 @@ fn generate_base64_data(size: usize) -> Vec<u8> {
     let alphabet = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
 
     let mut count = 0;
-    black_box(Vec::from_iter(std::iter::from_fn(|| {
+    Vec::from_iter(std::iter::from_fn(|| {
         count += 1;
         if count == size {
             return None;
         }
         Some(alphabet[count % alphabet.len()])
-    })))
+    }))
 }
 
 fn generate_binary_data(size: usize) -> Vec<u8> {
     let mut count = 0;
-    black_box(Vec::from_iter(std::iter::from_fn(|| {
+    Vec::from_iter(std::iter::from_fn(|| {
         count += 1;
         if count == size {
             return None;
         }
         Some(count as u8)
-    })))
+    }))
 }
 
-fn bench_decode_all(c: &mut Criterion) {
+fn bench_decode(c: &mut Criterion) {
     let mut group = c.benchmark_group("decode");
 
-    for size in [100, 100_000, 1_000_000] {
+    for size in [100, 1000, 10_000] {
         let data = generate_base64_data(size);
+
+        group.throughput(Throughput::Bytes(size as u64));
 
         group
             .bench_with_input(BenchmarkId::new("classic", size), &data, |g, input| {
@@ -62,12 +64,14 @@ fn bench_decode_all(c: &mut Criterion) {
     group.finish();
 }
 
-fn bench_encode_all(c: &mut Criterion) {
+fn bench_encode(c: &mut Criterion) {
 
     let mut group = c.benchmark_group("encode");
 
-    for size in [100, 100_000, 1_000_000] {
+    for size in [100, 1000, 10_000] {
         let data = generate_binary_data(size);
+
+        group.throughput(Throughput::Bytes(size as u64));
 
         group
             .bench_with_input(BenchmarkId::new("classic", size), &data, |g, input| {
@@ -102,12 +106,12 @@ fn bench_encode_all(c: &mut Criterion) {
 
 criterion_group!(
     decode,
-    bench_decode_all,
+    bench_decode,
 );
 
 criterion_group!(
     encode,
-    bench_encode_all,
+    bench_encode,
 );
 
 criterion_main!(
